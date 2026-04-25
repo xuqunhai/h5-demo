@@ -1,13 +1,15 @@
 {
   "pages": [
-    "pages/index/index"
+    "pages/index/index",
+    "pages/checkin/checkin"
   ],
   "window": {
-    "navigationBarTitleText": "每日打卡",
-    "navigationBarBackgroundColor": "#f4f6fb",
+    "navigationBarTitleText": "首页",
+    "navigationBarBackgroundColor": "#eef1ff",
     "navigationBarTextStyle": "black",
     "backgroundColor": "#f4f6fb"
   },
+  "lazyCodeLoading": "requiredComponents",
   "style": "v2",
   "sitemapLocation": "sitemap.json"
 }

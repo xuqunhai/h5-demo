@@ -1,3 +1,5 @@
 {
-  "navigationBarTitleText": "每日打卡"
+  "navigationBarTitleText": "首页",
+  "navigationBarBackgroundColor": "#eef1ff",
+  "navigationBarTextStyle": "black"
 }
