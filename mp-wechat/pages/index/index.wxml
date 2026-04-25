@@ -1,0 +1,136 @@
+<view class="page">
+  <view class="card">
+    <view class="title">每日打卡</view>
+    <view class="user-select">
+      <view class="input user-select-btn" bindtap="toggleUserMenu">
+        <text>{{selectedUserName}}</text>
+        <text>▾</text>
+      </view>
+      <view wx:if="{{showUserMenu}}" class="user-menu">
+        <view wx:for="{{users}}" wx:key="id" class="menu-row">
+          <view class="menu-item" data-userid="{{item.id}}" bindtap="selectUser">{{item.name}}</view>
+          <view class="close-mini" data-userid="{{item.id}}" bindtap="askDeleteUser">×</view>
+        </view>
+        <view class="menu-add" bindtap="openAddUserModal">+ 新增用户</view>
+      </view>
+    </view>
+  </view>
+
+  <view class="card">
+    <view class="calendar-head">
+      <view class="month-btn" bindtap="previousMonth">上月</view>
+      <view class="month-label">{{monthLabel}}</view>
+      <view class="month-btn" bindtap="nextMonth">下月</view>
+    </view>
+    <view class="week-row">
+      <view wx:for="{{weekNames}}" wx:key="*this">{{item}}</view>
+    </view>
+    <view class="calendar-grid">
+      <view
+        wx:for="{{monthDays}}"
+        wx:key="key"
+        class="day-wrap {{item.date === selectedDate ? 'selected' : ''}} {{!item.isCurrentMonth ? 'empty' : ''}}"
+        data-date="{{item.date}}"
+        bindtap="pickDate"
+      >
+        <view class="day-ring" style="background: conic-gradient(#ff5f67 0deg {{item.ratio * 360}}deg, #d8dbe8 {{item.ratio * 360}}deg 360deg);">
+          <view class="day-inner">{{item.day > 0 ? item.day : ''}}</view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <view class="card" wx:if="{{selectedUser}}">
+    <view class="date-title">已选日期：{{selectedDate}}</view>
+    <view class="hint">点击项目即可打卡/取消，日历外圈按完成比例高亮。</view>
+    <view class="project-list">
+      <view wx:for="{{selectedUser.projects}}" wx:key="*this" class="project-chip">
+        <view
+          class="project-item {{selectedRecord.indexOf(item) > -1 ? 'done' : ''}}"
+          data-project="{{item}}"
+          bindtap="toggleRecord"
+        >
+          {{item}}
+        </view>
+        <view class="close-mini" data-project="{{item}}" bindtap="askDeleteProject">×</view>
+      </view>
+      <view class="project-add" bindtap="openAddProjectModal">+</view>
+    </view>
+  </view>
+
+  <view class="card" wx:if="{{selectedUser}}">
+    <view class="date-title">{{selectedUser.name}} 项目汇总</view>
+    <view class="summary-list">
+      <view wx:for="{{summary}}" wx:key="projectName">
+        <view
+          class="summary-row {{item.expanded ? 'active' : ''}}"
+          data-project="{{item.projectName}}"
+          bindtap="toggleSummaryProject"
+        >
+          <text>{{item.projectName}}</text>
+          <text>{{item.doneDays}} 天</text>
+        </view>
+        <view wx:if="{{item.expanded}}" class="monthly-panel">
+          <view class="hint">{{item.projectName}} - 月度分布</view>
+          <view wx:if="{{item.monthlyStats.length > 0}}" class="monthly-list">
+            <view
+              wx:for="{{item.monthlyStats}}"
+              wx:key="yearMonth"
+              class="monthly-row"
+              data-ym="{{item.yearMonth}}"
+              bindtap="jumpToYearMonth"
+            >
+              <text>{{item.yearMonth}}</text>
+              <text>{{item.count}} 次</text>
+            </view>
+          </view>
+          <view wx:else class="hint">该项目还没有打卡数据。</view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <view
+    wx:if="{{showAddUserModal || showDeleteUserModal || showAddProjectModal || showDeleteProjectModal}}"
+    class="modal-mask"
+    bindtap="closeAllModals"
+  >
+    <view class="modal-card" catchtap="noop">
+      <block wx:if="{{showAddUserModal}}">
+        <view class="date-title">新增用户</view>
+        <input class="input" placeholder="输入用户名称" value="{{userNameInput}}" bindinput="onUserNameInput" />
+        <view class="row">
+          <view class="btn ghost" bindtap="closeAllModals">取消</view>
+          <view class="btn" bindtap="confirmAddUser">确定</view>
+        </view>
+      </block>
+
+      <block wx:if="{{showDeleteUserModal}}">
+        <view class="date-title">删除确认</view>
+        <view class="hint">确定删除该用户吗？该用户的项目和记录会一起删除。</view>
+        <view class="row">
+          <view class="btn ghost" bindtap="closeAllModals">取消</view>
+          <view class="btn" bindtap="confirmDeleteUser">确定</view>
+        </view>
+      </block>
+
+      <block wx:if="{{showAddProjectModal}}">
+        <view class="date-title">新增项目</view>
+        <input class="input" placeholder="输入项目名称，如：跳绳" value="{{projectNameInput}}" bindinput="onProjectNameInput" />
+        <view class="row">
+          <view class="btn ghost" bindtap="closeAllModals">取消</view>
+          <view class="btn" bindtap="confirmAddProject">确定</view>
+        </view>
+      </block>
+
+      <block wx:if="{{showDeleteProjectModal}}">
+        <view class="date-title">删除确认</view>
+        <view class="hint">确定删除项目“{{pendingDeleteProjectName}}”吗？</view>
+        <view class="row">
+          <view class="btn ghost" bindtap="closeAllModals">取消</view>
+          <view class="btn" bindtap="confirmDeleteProject">确定</view>
+        </view>
+      </block>
+    </view>
+  </view>
+</view>

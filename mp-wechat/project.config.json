@@ -1,0 +1,21 @@
+{
+  "description": "daily checkin mini program",
+  "packOptions": {
+    "ignore": []
+  },
+  "setting": {
+    "bundle": false,
+    "userConfirmedBundleSwitch": false,
+    "urlCheck": false,
+    "es6": true,
+    "enhance": true,
+    "postcss": true,
+    "minified": true,
+    "compileHotReLoad": true
+  },
+  "compileType": "miniprogram",
+  "libVersion": "3.4.3",
+  "appid": "touristappid",
+  "projectname": "daily-checkin",
+  "condition": {}
+}

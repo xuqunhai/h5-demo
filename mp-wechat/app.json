@@ -1,0 +1,13 @@
+{
+  "pages": [
+    "pages/index/index"
+  ],
+  "window": {
+    "navigationBarTitleText": "每日打卡",
+    "navigationBarBackgroundColor": "#f4f6fb",
+    "navigationBarTextStyle": "black",
+    "backgroundColor": "#f4f6fb"
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json"
+}
