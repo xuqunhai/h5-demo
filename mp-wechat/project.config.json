@@ -1,5 +1,5 @@
 {
-  "description": "daily checkin mini program",
+  "description": "checkin + photo print mini program",
   "packOptions": {
     "ignore": [],
     "include": []

@@ -9,6 +9,15 @@
 - 点击月度分布可跳转对应年月
 - 本地持久化（`wx.setStorageSync`）
 
+打印图片（`pages/print/print`，对应 H5 的 `photo.html`）：
+
+- 多图上传（相册 / 拍照），按毫米精确排版到虚线框内
+- 拖动移动、四角等比缩放（可关「锁比例」）、X/Y/宽/高输入、1mm 上下左右微调、删除
+- 纸面尺寸可改（默认 A4 210×297，含 A5 / 6寸 / 7寸预设）
+- 输出两条路，尺寸都按 300dpi 物理换算：
+  - 「存到相册」：A4 300dpi 图片，用手机打印
+  - 「打印 PDF」：一页 PDF（页框严格等于设定 mm），打开文档后转发或系统打印
+
 ## 运行方式
 
 1. 打开微信开发者工具
@@ -19,5 +28,5 @@
 
 ## 说明
 
-- 本地存储 Key：`daily-checkin-mp-v1`
-- 目前为单页：`pages/index/index`
+- 本地存储 Key：`daily-checkin-mp-v1`（打印图片不做持久化，退出即清空排版）
+- 页面：`pages/index/index`（九宫格）、`pages/checkin/checkin`（打卡）、`pages/print/print`（打印图片）

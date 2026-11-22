@@ -1,0 +1,74 @@
+<view class="page">
+  <view class="bar">
+    <view class="bar-row">
+      <text class="lbl">区域</text>
+      <input class="num" type="digit" value="{{wInput}}" data-field="w" bindblur="onSizeBlur" bindconfirm="onSizeBlur" />
+      <text class="lbl">×</text>
+      <input class="num" type="digit" value="{{hInput}}" data-field="h" bindblur="onSizeBlur" bindconfirm="onSizeBlur" />
+      <text class="lbl">mm</text>
+    </view>
+    <view class="chips">
+      <view wx:for="{{presets}}" wx:key="name" class="chip" data-i="{{index}}" bindtap="pickPreset">{{item.name}}</view>
+      <text class="tip">虚线内即打印范围</text>
+    </view>
+  </view>
+
+  <view class="stage">
+    <view class="frame" style="width:{{frameW}}px;height:{{frameH}}px" bindtap="onFrameTap" bindtouchmove="onTouchMove" bindtouchend="onTouchEnd" bindtouchcancel="onTouchEnd">
+      <view
+        wx:for="{{items}}"
+        wx:key="id"
+        class="item {{selId === item.id ? 'on' : ''}}"
+        style="left:{{item.left}}px;top:{{item.top}}px;width:{{item.w}}px;height:{{item.h}}px"
+        data-id="{{item.id}}"
+        catchtouchstart="onItemStart"
+        catchtouchmove="onTouchMove"
+        catchtouchend="onTouchEnd"
+        catchtouchcancel="onTouchEnd"
+        catchtap="onItemTap"
+      >
+        <image class="img" src="{{item.path}}" mode="scaleToFill" />
+        <block wx:if="{{selId === item.id}}">
+          <view class="hd tl" data-id="{{item.id}}" data-corner="tl" catchtouchstart="onHandleStart" catchtouchmove="onTouchMove" catchtouchend="onTouchEnd"></view>
+          <view class="hd tr" data-id="{{item.id}}" data-corner="tr" catchtouchstart="onHandleStart" catchtouchmove="onTouchMove" catchtouchend="onTouchEnd"></view>
+          <view class="hd bl" data-id="{{item.id}}" data-corner="bl" catchtouchstart="onHandleStart" catchtouchmove="onTouchMove" catchtouchend="onTouchEnd"></view>
+          <view class="hd br" data-id="{{item.id}}" data-corner="br" catchtouchstart="onHandleStart" catchtouchmove="onTouchMove" catchtouchend="onTouchEnd"></view>
+        </block>
+      </view>
+    </view>
+    <view wx:if="{{!items.length}}" class="empty">
+      <view>还没有图片</view>
+      <view>点下面「添加图片」开始排版</view>
+    </view>
+  </view>
+
+  <view wx:if="{{sel}}" class="card">
+    <view class="row">
+      <view class="field"><text class="lbl">X</text><input class="num sm" type="digit" value="{{sel.x}}" data-field="x" bindblur="onNumBlur" bindconfirm="onNumBlur" /></view>
+      <view class="field"><text class="lbl">Y</text><input class="num sm" type="digit" value="{{sel.y}}" data-field="y" bindblur="onNumBlur" bindconfirm="onNumBlur" /></view>
+      <view class="field"><text class="lbl">宽</text><input class="num sm" type="digit" value="{{sel.w}}" data-field="w" bindblur="onNumBlur" bindconfirm="onNumBlur" /></view>
+      <view class="field"><text class="lbl">高</text><input class="num sm" type="digit" value="{{sel.h}}" data-field="h" bindblur="onNumBlur" bindconfirm="onNumBlur" /></view>
+    </view>
+    <view class="row2">
+      <view class="pad">
+        <view class="nd up" data-dir="up" bindtap="onNudge">↑</view>
+        <view class="nd left" data-dir="left" bindtap="onNudge">←</view>
+        <view class="nd mid">1mm</view>
+        <view class="nd right" data-dir="right" bindtap="onNudge">→</view>
+        <view class="nd down" data-dir="down" bindtap="onNudge">↓</view>
+      </view>
+      <view class="side">
+        <view class="lock"><text class="lbl">锁比例</text><switch checked="{{lockAspect}}" bindchange="toggleLock" /></view>
+        <view class="del" bindtap="removeSel">删除这张</view>
+      </view>
+    </view>
+  </view>
+
+  <view class="panel">
+    <button class="btn" bindtap="addImages">＋ 添加图片</button>
+    <button class="btn" bindtap="saveToAlbum" disabled="{{busy}}">存到相册</button>
+    <button class="btn primary" bindtap="openPdf" disabled="{{busy}}">打印 PDF</button>
+  </view>
+
+  <canvas type="2d" id="printCanvas" class="offscreen"></canvas>
+</view>

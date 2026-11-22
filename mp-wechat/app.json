@@ -1,7 +1,8 @@
 {
   "pages": [
     "pages/index/index",
-    "pages/checkin/checkin"
+    "pages/checkin/checkin",
+    "pages/print/print"
   ],
   "window": {
     "navigationBarTitleText": "首页",
