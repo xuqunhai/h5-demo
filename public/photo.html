@@ -1325,17 +1325,9 @@ function exportPDF(){
 /* 打印链路（浏览器/打印 App/驱动）可能把整页放大或缩小一个固定比例 k。
    纸张上量到的「100mm 线」如果是 106mm，就把 k 记成 1.06，打印时按 1/k 输出，
    纸上的真实尺寸就回到准确值。*/
-/* 手机端打印走的是系统打印服务/第三方打印 App（QQ、WPS 等），那套链路会把
-   网页重新排一次版，常见整体放大 6%（≈96/90 的 dpi 换算）。电脑浏览器是 1:1，
-   所以校准值必须按设备分开：本机没存过时，手机默认先按 ×1.06 补偿，电脑默认 1:1。*/
-/* 手机（安卓系统打印服务/第三方打印 App、iPhone AirPrint）实测都会把整页放大 6%
-   （≈96/90 的 dpi 换算），电脑浏览器是 1:1 —— 所以默认值按"手机/电脑"分两类。 */
-function isMobileUa(){
-  var ua = navigator.userAgent || "";
-  if(/Android|HarmonyOS|MiuiBrowser|HuaweiBrowser|OPPO|vivo|XiaoMi|Redmi|iPhone|iPad|iPod/i.test(ua)) return true;
-  try{ if(/Macintosh/i.test(ua) && navigator.maxTouchPoints > 1) return true; }catch(e){}
-  return false;
-}
+/* 默认一律 1:1，不预设任何补偿：页面 mm 尺寸就是纸上尺寸，交给打印链路原样输出。
+   某台设备如果实测被放大（例如 100mm 打印成 106mm），用户在这里手动校准一次即可，
+   校准值只存在本机，并且只在打印时生效（导出 PDF 始终 1:1）。 */
 function loadCalib(){
   try{
     var raw = localStorage.getItem("photoCalibV1");
@@ -1344,11 +1336,11 @@ function loadCalib(){
       if(isFinite(v) && v > 0.6 && v < 1.6) return v;
     }
   }catch(e){}
-  return isMobileUa() ? 1.06 : 1;
+  return 1;
 }
 function saveCalib(k){
   S.calib = k;
-  // 显式保存（含 1:1）都写进本机，避免被"手机默认 1.06"再盖回去
+  // 显式保存（含 1:1）都写进本机
   try{ localStorage.setItem("photoCalibV1", String(Math.round(k * 10000) / 10000)); }catch(e){}
   syncCalib();
 }
@@ -1356,11 +1348,9 @@ function syncCalib(){
   var t = $("#calibState");
   if(!t) return;
   var k = S.calib || 1;
-  var stored = null;
-  try{ stored = localStorage.getItem("photoCalibV1"); }catch(e){}
   if(Math.abs(k - 1) < 0.0005){ t.textContent = "当前：1:1 输出（未补偿）"; return; }
   var pct = Math.round(1000 / k) / 10;
-  t.textContent = "当前：按 " + pct + "% 输出（×" + k.toFixed(2) + (stored === null ? "，手机默认" : "，本机实测") + "）";
+  t.textContent = "当前：按 " + pct + "% 输出（×" + k.toFixed(2) + "，本机实测）";
 }
 /* 打印结束后恢复现场：afterprint / 回到前台 / 兜底超时，取最先发生的 */
 function afterPrint(fn){
