@@ -75,8 +75,8 @@ Page({
     })
   },
 
-  selView(items) {
-    const it = items.find((x) => x.id === this.data.selId)
+  selView(items, id) {
+    const it = items.find((x) => x.id === (id || this.data.selId))
     if (!it) return null
     return { id: it.id, x: one(it.mmX), y: one(it.mmY), w: one(it.mmW), h: one(it.mmH) }
   },
@@ -87,11 +87,16 @@ Page({
     const items = this.data.items
     const it = items.find((x) => x.id === id)
     if (!it) return
-    this.setData({ selId: id, sel: this.selView(items) })
+    this.setData({ selId: id, sel: this.selView(items, id) })
+    // 检查器卡片出现会让画布变矮，重新量一次再排版，避免纸面盖住顶部
+    this.measureStage()
   },
 
   onFrameTap() {
-    if (this.data.selId) this.setData({ selId: '', sel: null })
+    if (this.data.selId) {
+      this.setData({ selId: '', sel: null })
+      this.measureStage()
+    }
   },
 
   onItemTap(e) {
@@ -288,6 +293,7 @@ Page({
     const id = this.data.selId
     if (!id) return
     this.setData({ items: this.data.items.filter((x) => x.id !== id), selId: '', sel: null })
+    this.measureStage()
   },
 
   findSel() {
