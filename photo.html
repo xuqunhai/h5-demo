@@ -207,6 +207,20 @@ img{-webkit-user-drag:none}
 #btnPdf{flex:none;height:42px;border-radius:11px;padding:0 14px;font-size:13.5px;color:#3d4a61}
 #btnPdf:hover{background:#f7f9ff;border-color:#c9d3e6}
 
+/* ---------- 打印校准页 ---------- */
+#calibSheet{display:none}
+.cs-head{font-size:16px;font-weight:600;margin-bottom:8mm}
+.cs-line{height:.5mm;background:#000;position:relative}
+.cs-line::before,.cs-line::after{content:"";position:absolute;top:-2mm;width:.5mm;height:4.5mm;background:#000}
+.cs-line::before{left:0}
+.cs-line::after{right:0}
+.cs-len{font-size:12px;margin-top:2mm;letter-spacing:.4px}
+.cs-note{margin-top:10mm;font-size:12px;line-height:1.9;color:#333}
+.calibtip{margin:0 0 12px;font-size:12.5px;line-height:1.7;color:#556}
+.calibstate{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:12px;
+  padding-top:10px;border-top:1px solid var(--line);font-size:12px;color:#66707f}
+.calibstate button{border:0;background:none;color:#8b93a3;font-size:12px;cursor:pointer;padding:0;white-space:nowrap;flex:none}
+
 /* ---------- 弹窗 ---------- */
 .modal{
   position:fixed;left:0;top:0;right:0;bottom:0;z-index:1000;
@@ -276,10 +290,14 @@ img{-webkit-user-drag:none}
   }
   .handle,.guide,.empty{display:none!important}
   #printGuard{display:block!important}
+  #calibSheet{display:none!important}
+  body.calib #slot{display:none!important}
+  body.calib #calibSheet{display:block!important;padding:14mm 12mm;background:#fff}
   .img-box{outline:none!important}
   .img-box.sel{outline:none!important}
   .img-box::after{box-shadow:none!important}
   #modal{display:none!important}
+  .modal{display:none!important}
 }
 </style>
 <style id="pageStyle"></style>
@@ -309,6 +327,7 @@ img{-webkit-user-drag:none}
     <button class="chip" data-preset="148,210">A5</button>
     <button class="chip" data-preset="102,152">6寸</button>
     <button class="chip" data-preset="127,178">7寸</button>
+    <button class="chip" id="btnCalib" title="打印尺寸校准：纸上尺寸印不准时用">校准</button>
 
     <label class="switch" title="拖动角点缩放时是否保持原始宽高比；按住 Shift / Alt 可临时反选">
       <input id="lockAspect" type="checkbox" checked>
@@ -342,6 +361,16 @@ img{-webkit-user-drag:none}
           <div class="edge left" title="长按 0.6 秒打印"></div>
           <div class="edge right" title="长按 0.6 秒打印"></div>
         </div>
+      </div>
+    </div>
+    <div id="calibSheet">
+      <div class="cs-head">打印尺寸校准页</div>
+      <div class="cs-line" id="rulerLine"></div>
+      <div class="cs-len" id="rulerLabel">100 mm</div>
+      <div class="cs-note">
+        上面这条线，两端之间应该是 <b id="rulerLen2">100</b> mm。<br>
+        用尺子量一下纸上这条线的实际长度，把量到的数字填进「校准」<br>
+        （比如量到 106，就填 106）。
       </div>
     </div>
   </main>
@@ -400,6 +429,24 @@ img{-webkit-user-drag:none}
       <button class="btn sm" id="mCancel">取消</button>
       <button class="btn sm primary" id="mOk">确定</button>
     </div>
+  </div>
+</div>
+
+<!-- ===== 打印尺寸校准弹窗 ===== -->
+<div class="modal" id="calibModal" hidden>
+  <div class="card">
+    <h3>打印尺寸校准</h3>
+    <p class="calibtip">
+      打印链路（浏览器 / 打印 App / 驱动）偶尔会把整页放大或缩小一点，纸上的 mm 就对不上。
+      先印一张校准页，量一下那条线，把量到的数字填进来，以后印出来就是真实尺寸。
+    </p>
+    <div class="crow"><label>实测</label><input id="calibMm" type="number" inputmode="decimal" step="0.5" min="80" max="130" value="100"><span>mm</span></div>
+    <div class="cfoot">
+      <button class="btn sm" id="calibPrint">打印校准页</button>
+      <button class="btn sm primary" id="calibSave">保存</button>
+      <button class="btn sm" id="calibCancel">关闭</button>
+    </div>
+    <div class="calibstate"><span id="calibState">当前：未校准（1:1）</span><button id="calibReset">恢复 1:1</button></div>
   </div>
 </div>
 
@@ -506,7 +553,7 @@ function toast(msg, ms){
 
 /* ============ 状态 ============ */
 var S = { page:{w:210,h:297}, items:[], sel:null, top:10, idc:0, drag:null,
-          lockAspect:true, tapId:null, tapTime:0 };
+          lockAspect:true, tapId:null, tapTime:0, calib:1 };
 
 /* ============ 纸张与缩放 ============ */
 function setPage(w,h){
@@ -1271,6 +1318,86 @@ function exportPDF(){
   }, 60);
 }
 
+/* ============ 打印尺寸校准 ============ */
+/* 打印链路（浏览器/打印 App/驱动）可能把整页放大或缩小一个固定比例 k。
+   纸张上量到的「100mm 线」如果是 106mm，就把 k 记成 1.06，打印时按 1/k 输出，
+   纸上的真实尺寸就回到准确值。*/
+function loadCalib(){
+  try{
+    var v = parseFloat(localStorage.getItem("photoCalibV1"));
+    if(isFinite(v) && v > 0.6 && v < 1.6) return v;
+  }catch(e){}
+  return 1;
+}
+function saveCalib(k){
+  S.calib = k;
+  try{
+    if(Math.abs(k - 1) < 0.0005) localStorage.removeItem("photoCalibV1");
+    else localStorage.setItem("photoCalibV1", String(k));
+  }catch(e){}
+  syncCalib();
+}
+function syncCalib(){
+  var t = $("#calibState");
+  if(!t) return;
+  var k = S.calib || 1;
+  if(Math.abs(k - 1) < 0.0005){ t.textContent = "当前：未校准（1:1）"; return; }
+  var pct = Math.round(1000 / k) / 10;
+  t.textContent = "当前：按 " + pct + "% 输出（实测 ×" + k.toFixed(2) + "）";
+}
+/* 打印结束后恢复现场：afterprint / 回到前台 / 兜底超时，取最先发生的 */
+function afterPrint(fn){
+  var done = false;
+  function fin(){
+    if(done) return;
+    done = true;
+    try{ window.removeEventListener("afterprint", fin, false); }catch(e){}
+    try{ window.removeEventListener("focus", onFocus, false); }catch(e){}
+    try{ fn(); }catch(e){}
+  }
+  function onFocus(){ setTimeout(fin, 260); }
+  try{ window.addEventListener("afterprint", fin, false); }catch(e){}
+  try{ window.addEventListener("focus", onFocus, false); }catch(e){}
+  setTimeout(fin, 20000);
+}
+/* 校准页：印一条已知长度的线，让用户量完填回来 */
+function printCalibSheet(){
+  var sh = $("#calibSheet");
+  var w = Math.min(100, Math.max(20, S.page.w - 30));
+  w = Math.round(w * 10) / 10;
+  $("#rulerLine").style.width = w + "mm";
+  $("#rulerLabel").textContent = w + " mm";
+  $("#rulerLen2").textContent = w;
+  sh.style.width = S.page.w + "mm";
+  sh.style.height = S.page.h + "mm";
+  void sh.offsetHeight;
+  document.body.classList.add("calib");
+  void sh.offsetHeight;
+  try{ window.print(); }
+  catch(e){ toast("这个浏览器不响应打印，可以用另一台手机/电脑打开再印", 3600); }
+  afterPrint(function(){ document.body.classList.remove("calib"); });
+}
+
+$("#btnCalib").addEventListener("click", function(){
+  $("#calibMm").value = Math.round((S.calib || 1) * 1000) / 10;
+  syncCalib();
+  $("#calibModal").hidden = false;
+}, false);
+$("#calibCancel").addEventListener("click", function(){ $("#calibModal").hidden = true; }, false);
+$("#calibPrint").addEventListener("click", function(){ printCalibSheet(); }, false);
+$("#calibSave").addEventListener("click", function(){
+  var v = parseFloat($("#calibMm").value);
+  if(!(v > 79 && v < 131)){ toast("请输入 80～130 之间的数字（量到的线长）", 2800); return; }
+  saveCalib(v / 100);
+  $("#calibModal").hidden = true;
+  toast("已校准：纸上 " + (Math.round(v * 10) / 10) + "mm 记为 100mm，之后打印按真实尺寸输出", 3600);
+}, false);
+$("#calibReset").addEventListener("click", function(){
+  saveCalib(1);
+  $("#calibMm").value = 100;
+  toast("已恢复 1:1", 2400);
+}, false);
+
 function doPrint(){
   if(typeof window.print !== "function"){
     toast("当前环境不支持打印，请点「导出 PDF」或用浏览器打开", 3600);
@@ -1284,13 +1411,22 @@ function doPrint(){
 
   hideGuides();
   $("#modal").hidden = true;
+  $("#calibModal").hidden = true;
   void frame.offsetHeight;   // 强制一次回流，让打印样式在本次任务里就位
+
+  // 校准过就把整页按 1/k 输出，抵消打印链路的放大/缩小（以纸张左上角为基准，尺寸才是准的）
+  var k = S.calib || 1;
+  if(Math.abs(k - 1) > 0.0005){
+    frame.style.transformOrigin = "top left";
+    frame.style.transform = "scale(" + (1 / k).toFixed(5) + ")";
+    afterPrint(function(){ frame.style.transform = ""; frame.style.transformOrigin = ""; });
+  }
 
   // 第一次打印时提醒一次：纸张尺寸和缩放决定最终物理尺寸
   try{
     if(!localStorage.getItem("photoPrintHintV2")){
       localStorage.setItem("photoPrintHintV2", "1");
-      toast("打印设置：纸张选 A4、缩放 100%（实际大小）；印出来量不到 100mm 就是缩放没设对", 6000);
+      toast("打印设置：纸张选 A4、缩放 100%；如果纸上量到的尺寸还不对，点上方「校准」补一次就行", 6000);
     }
   }catch(e){}
 
@@ -1402,6 +1538,8 @@ Array.prototype.forEach.call(document.querySelectorAll("input[type=number]"), fu
 /* ============ 初始化 ============ */
 updateVH();
 S.lockAspect = $("#lockAspect").checked;
+S.calib = loadCalib();
+syncCalib();
 setPage(210, 297);
 setTimeout(relayout, 60);
 
