@@ -98,6 +98,15 @@ img{-webkit-user-drag:none}
 }
 #frame.charging{outline-color:var(--blue)}
 
+/* 打印护框：只在打印页出现，是贴着纸张四边一圈 3mm 的极浅灰边（8% 灰）。
+   用途：打印 App / 驱动若按“内容外接框铺满纸张”缩放，会先把白边裁掉再放大；
+   有了这圈边，外接框正好等于纸张，缩放恒为 1:1。3mm 一般在打印机不可打印区里，肉眼看不到。 */
+#printGuard{
+  position:absolute;left:0;top:0;right:0;bottom:0;display:none;
+  pointer-events:none;box-shadow:inset 0 0 0 3mm rgba(0,0,0,.08);
+  -webkit-print-color-adjust:exact;print-color-adjust:exact;
+}
+
 .empty{
   position:absolute;left:0;top:0;right:0;bottom:0;
   display:flex;flex-direction:column;align-items:center;justify-content:center;
@@ -266,6 +275,7 @@ img{-webkit-user-drag:none}
     outline:none!important;box-shadow:none!important;
   }
   .handle,.guide,.empty{display:none!important}
+  #printGuard{display:block!important}
   .img-box{outline:none!important}
   .img-box.sel{outline:none!important}
   .img-box::after{box-shadow:none!important}
@@ -319,6 +329,7 @@ img{-webkit-user-drag:none}
     <div id="slot">
       <div id="stage">
         <div id="frame">
+          <div id="printGuard" aria-hidden="true"></div>
           <div class="empty">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="9" r="1.6"/><path d="M3.5 17.5 9 12l4 4 3-2.5 4.5 4"/></svg>
             <div>把照片拖到这里，或点左上角「添加图片」</div>
@@ -1192,6 +1203,13 @@ function buildPdfBlob(list){
      " /Resources << /ProcSet [/PDF /ImageC] /XObject << " + xo + ">> >> /Contents 4 0 R >>\nendobj\n");
 
   var content = "";
+  // 纸张四边一圈 3mm 的 8% 灰边：让按“内容外接框”铺满纸张的打印 App 无白边可裁，缩放恒为 1:1
+  var band = mmPt(3);
+  content += "0.92 0.92 0.92 rg\n";
+  content += "0 0 " + fmtNum(Wpt) + " " + fmtNum(band) + " re f\n";              // 下
+  content += "0 " + fmtNum(Hpt - band) + " " + fmtNum(Wpt) + " " + fmtNum(band) + " re f\n"; // 上
+  content += "0 0 " + fmtNum(band) + " " + fmtNum(Hpt) + " re f\n";              // 左
+  content += fmtNum(Wpt - band) + " 0 " + fmtNum(band) + " " + fmtNum(Hpt) + " re f\n"; // 右
   for(var j = 0; j < n; j++){
     var it = list[j].it;
     content += "q " + fmtNum(mmPt(it.w)) + " 0 0 " + fmtNum(mmPt(it.h)) + " " +
@@ -1249,7 +1267,7 @@ function exportPDF(){
     try{ a.click(); }catch(e){}
     setTimeout(function(){ try{ document.body.removeChild(a); }catch(e){} }, 500);
     setTimeout(function(){ try{ URL.revokeObjectURL(url); }catch(e){} }, 30000);
-    toast(skipped ? ("PDF 已生成，有 " + skipped + " 张图读取失败被跳过") : ("PDF 已生成：" + S.page.w + "×" + S.page.h + "mm"), 3600);
+    toast(skipped ? ("PDF 已生成，有 " + skipped + " 张图读取失败被跳过；打印 PDF 时选「实际大小/100%」") : ("PDF 已生成：" + S.page.w + "×" + S.page.h + "mm，打印时选「实际大小/100%」"), 4200);
   }, 60);
 }
 
@@ -1267,6 +1285,14 @@ function doPrint(){
   hideGuides();
   $("#modal").hidden = true;
   void frame.offsetHeight;   // 强制一次回流，让打印样式在本次任务里就位
+
+  // 第一次打印时提醒一次：纸张尺寸和缩放决定最终物理尺寸
+  try{
+    if(!localStorage.getItem("photoPrintHintV2")){
+      localStorage.setItem("photoPrintHintV2", "1");
+      toast("打印设置：纸张选 A4、缩放 100%（实际大小）；印出来量不到 100mm 就是缩放没设对", 6000);
+    }
+  }catch(e){}
 
   var fired = false, seen = false;
   function onBP(){ seen = true; }
