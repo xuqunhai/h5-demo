@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vue-tsc -b && vite build",
+    "build": "vue-tsc -b && cp photo.html public/photo.html && vite build",
     "preview": "vite preview"
   },
   "dependencies": {
