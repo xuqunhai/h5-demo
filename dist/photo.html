@@ -370,7 +370,9 @@ img{-webkit-user-drag:none}
       <div class="cs-note">
         上面这条线，两端之间应该是 <b id="rulerLen2">100</b> mm。<br>
         用尺子量一下纸上这条线的实际长度，把量到的数字填进「校准」<br>
-        （比如量到 106，就填 106）。
+        （比如量到 106，就填 106）。<br>
+        <b>方向自检：</b>这条线印出来应该是<b>横</b>的；如果变成竖的，说明打印 App 把纸转成了横向，
+        先在打印设置里把「纸张方向」手动选成纵向，再印一次。
       </div>
     </div>
   </main>
@@ -439,6 +441,7 @@ img{-webkit-user-drag:none}
     <p class="calibtip">
       打印链路（浏览器 / 打印 App / 驱动）偶尔会把整页放大或缩小一点，纸上的 mm 就对不上。
       先印一张校准页，量一下那条线，把量到的数字填进来，以后印出来就是真实尺寸。
+      手机和电脑各记各的：电脑、iPhone 一般不用校准；安卓第一次用默认已按 94.3% 补偿，量到还不对就改成实测值。
     </p>
     <div class="crow"><label>实测</label><input id="calibMm" type="number" inputmode="decimal" step="0.5" min="80" max="130" value="100"><span>mm</span></div>
     <div class="cfoot">
@@ -1322,28 +1325,39 @@ function exportPDF(){
 /* 打印链路（浏览器/打印 App/驱动）可能把整页放大或缩小一个固定比例 k。
    纸张上量到的「100mm 线」如果是 106mm，就把 k 记成 1.06，打印时按 1/k 输出，
    纸上的真实尺寸就回到准确值。*/
+/* 手机端打印走的是系统打印服务/第三方打印 App（QQ、WPS 等），那套链路会把
+   网页重新排一次版，常见整体放大 6%（≈96/90 的 dpi 换算）。电脑浏览器是 1:1，
+   所以校准值必须按设备分开：本机没存过时，手机默认先按 ×1.06 补偿，电脑默认 1:1。*/
+/* 只有安卓这套打印链路实测偏 6%（iOS 的 AirPrint、电脑浏览器都是 1:1），所以默认值只给安卓 */
+function isAndroidUa(){
+  var ua = navigator.userAgent || "";
+  return /Android|HarmonyOS|MiuiBrowser|HuaweiBrowser|OPPO|vivo|XiaoMi|Redmi/i.test(ua);
+}
 function loadCalib(){
   try{
-    var v = parseFloat(localStorage.getItem("photoCalibV1"));
-    if(isFinite(v) && v > 0.6 && v < 1.6) return v;
+    var raw = localStorage.getItem("photoCalibV1");
+    if(raw !== null){
+      var v = parseFloat(raw);
+      if(isFinite(v) && v > 0.6 && v < 1.6) return v;
+    }
   }catch(e){}
-  return 1;
+  return isAndroidUa() ? 1.06 : 1;
 }
 function saveCalib(k){
   S.calib = k;
-  try{
-    if(Math.abs(k - 1) < 0.0005) localStorage.removeItem("photoCalibV1");
-    else localStorage.setItem("photoCalibV1", String(k));
-  }catch(e){}
+  // 显式保存（含 1:1）都写进本机，避免被"手机默认 1.06"再盖回去
+  try{ localStorage.setItem("photoCalibV1", String(Math.round(k * 10000) / 10000)); }catch(e){}
   syncCalib();
 }
 function syncCalib(){
   var t = $("#calibState");
   if(!t) return;
   var k = S.calib || 1;
-  if(Math.abs(k - 1) < 0.0005){ t.textContent = "当前：未校准（1:1）"; return; }
+  var stored = null;
+  try{ stored = localStorage.getItem("photoCalibV1"); }catch(e){}
+  if(Math.abs(k - 1) < 0.0005){ t.textContent = "当前：1:1 输出（未补偿）"; return; }
   var pct = Math.round(1000 / k) / 10;
-  t.textContent = "当前：按 " + pct + "% 输出（实测 ×" + k.toFixed(2) + "）";
+  t.textContent = "当前：按 " + pct + "% 输出（×" + k.toFixed(2) + (stored === null ? "，安卓默认" : "，本机实测") + "）";
 }
 /* 打印结束后恢复现场：afterprint / 回到前台 / 兜底超时，取最先发生的 */
 function afterPrint(fn){
@@ -1426,7 +1440,10 @@ function doPrint(){
   try{
     if(!localStorage.getItem("photoPrintHintV2")){
       localStorage.setItem("photoPrintHintV2", "1");
-      toast("打印设置：纸张选 A4、缩放 100%；如果纸上量到的尺寸还不对，点上方「校准」补一次就行", 6000);
+      var comp = Math.abs((S.calib || 1) - 1) > 0.0005;
+      toast("打印设置：纸张选 A4、方向 " + (S.page.w > S.page.h ? "横向" : "纵向") + "、缩放 100%"
+        + (comp ? "。本机已按 " + (Math.round(1000 / (S.calib || 1)) / 10) + "% 输出补偿打印链路" : "")
+        + "；纸上量到的尺寸还不对，点上方「校准」填一次实测值", 6000);
     }
   }catch(e){}
 
