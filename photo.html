@@ -441,7 +441,7 @@ img{-webkit-user-drag:none}
     <p class="calibtip">
       打印链路（浏览器 / 打印 App / 驱动）偶尔会把整页放大或缩小一点，纸上的 mm 就对不上。
       先印一张校准页，量一下那条线，把量到的数字填进来，以后印出来就是真实尺寸。
-      手机和电脑各记各的：手机第一次用默认已按 94.3% 补偿（安卓、iPhone 实测都会偏大 6%），电脑默认 1:1；量到还不对就填实测值。
+      默认一律按 1:1 输出，不做补偿：先按原样印一次，只有量到明显偏大/偏小（例如 100mm 印成 106mm）时才需要校准，填一次实测值即可，本机记住。
     </p>
     <div class="crow"><label>实测</label><input id="calibMm" type="number" inputmode="decimal" step="0.5" min="80" max="130" value="100"><span>mm</span></div>
     <div class="cfoot">
@@ -1331,6 +1331,15 @@ function exportPDF(){
 function loadCalib(){
   try{
     var raw = localStorage.getItem("photoCalibV1");
+    // 旧版把"手机默认 ×1.06"写进过本机，首次加载时一次性清掉，回到 1:1；
+    // 之后用户自己再校准成 1.06 不会被清（有迁移标记）。
+    if(!localStorage.getItem("photoCalibV2Done")){
+      try{ localStorage.setItem("photoCalibV2Done", "1"); }catch(e){}
+      if(raw !== null && Math.abs(parseFloat(raw) - 1.06) < 0.001){
+        try{ localStorage.removeItem("photoCalibV1"); }catch(e){}
+        raw = null;
+      }
+    }
     if(raw !== null){
       var v = parseFloat(raw);
       if(isFinite(v) && v > 0.6 && v < 1.6) return v;
